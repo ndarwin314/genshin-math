@@ -1,8 +1,12 @@
 import random
 import bisect
 import numpy as np
+import time
 import matplotlib.pyplot as plt
+import multiprocessing as mp
+import os
 
+P = 0.325
 
 characterProbability = [0]
 for i in range(1, 76):
@@ -11,7 +15,7 @@ for i in range(76, 90):
     # (1 - characterProbability[75]) gives the probability 5* was in the first 75 wishes
     # we use this to scale our new geometric distribution so the total distribution sums to 1
     characterProbability.append(
-        (1 - characterProbability[75]) * .323 * pow(.677, i - 76) + characterProbability[-1])
+        (1 - characterProbability[75]) * P * pow(1-P, i - 76) + characterProbability[-1])
 characterProbability.append(1)
 
 weaponProbability = [0]
@@ -20,6 +24,7 @@ for i in range(1, 63):
 for i in range(63, 76):
     weaponProbability.append((1 - characterProbability[63]) * 0.2 * pow(0.8, i - 63) + weaponProbability[-1])
 weaponProbability.append(1)
+
 
 def sim_gacha(constellation=0, bannerCharacterEnsured=False):
     totalWishes = 0
@@ -38,6 +43,13 @@ def sim_gacha(constellation=0, bannerCharacterEnsured=False):
             else:
                 bannerCharacterEnsured = True
     return totalWishes
+
+def kill_me(n):
+    return sim_gacha(6, False)
+
+def multiple(n):
+
+    return [sim_gacha(n[1], n[2]) for _ in range(n[0])]
 
 
 def simulate_weapon():
@@ -63,20 +75,48 @@ def simulate_weapon():
 def bin_search(value, array):
     return bisect.bisect_left(array, value)
 
+def get_mode_sorted(list):
+    currentMode = 1
+    modeCount = 0
+    previous = 0
+    currentCount = 0
+    for i in list:
+        if i == previous:
+            currentCount += 1
+        else:
+            if currentCount > modeCount:
+                modeCount = currentCount
+                currentMode = previous
+            currentCount = 1
+        previous = i
+    return modeCount
 
-def character():
-    trials = 10 ** 5
-    constellation = 0
-    banner = False
-    rolls = [sim_gacha(constellation, banner) for _ in range(trials)]
+def character(constellation=0, trials=10 ** 5, banner=False):
+    start = time.time()
+    coreCount = os.cpu_count() - 1
+    #rolls = [sim_gacha(constellation, banner) for _ in range(trials)]
+
+    """with mp.Pool() as pools:
+        rolls = pools.map(kill_me, iterable=zip([constellation]*trials, [banner]*trials))"""
+
+    perCore = trials // coreCount
+    with mp.Pool() as pools:
+        temp = pools.map(multiple, iterable=zip([perCore]*coreCount,[constellation]*coreCount, [banner]*coreCount))
+    rolls = [i for j in temp for i in j]
+
     average = sum(rolls) / trials
-    Min = min(rolls)
-    Max = max(rolls)
-    variance = sum([(i - average) ** 2 for _ in rolls]) / (trials - 1)
+    variance = np.var(rolls)
     rolls.sort()
-    np.savetxt("results.txt", np.array(rolls, dtype=int), fmt="%i")
+    Min = rolls[0]
+    Max = rolls[-1]
+    maxProbability = get_mode_sorted(rolls) / trials
+    #np.savetxt("results.txt", np.array(rolls, dtype=int), fmt="%i")
+    test = []
+    for i in range(1, 91):
+        test.append(rolls.count(i)/(perCore*coreCount))
+    np.savetxt("results2.txt", np.array(test, dtype=float))
     print(f"After simulating {trials} attempts too get the banner character to constellation {constellation} "
-          f"starting {'with' + 'out' * (not banner)} 50/50:")
+          f"starting {'with' + 'out' * (not banner)} 50/50 to start:")
     print(f"    Average: {average}")
     print(f"    Minimum rolls: {Min}")
     print(f"    Maximum rolls: {Max}")
@@ -86,13 +126,15 @@ def character():
     print(f"    Third Quartile: {rolls[3 * trials // 4]}")
     print(f"    10th Percentile: {rolls[trials // 10]}")
     print(f"    90th Percentile: {rolls[9 * trials // 10]}")
-    plt.hist(rolls, bins=Max, density=True)
+    print(time.time()-start)
+
+    """plt.hist(rolls, bins=Max, density=True)
     plt.xlabel("Number of wishes")
     plt.ylabel("Probability")
     plt.title("5* character without guarantee")
-    plt.axis([0, 180, 0, 0.150])
+    plt.axis([0, Max, 0, maxProbability * 1.2])
     plt.grid(True)
-    plt.show()
+    plt.show()"""
 
 
 def weapon(trials=10 ** 7):
