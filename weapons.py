@@ -50,7 +50,7 @@ class AmosBow(Bow):
                                                                              DmgTag.NORMAL: dmgBonus})
 
     def get_attributes(self, state, stacks=0):
-        dmgBonus = stacks * (6 + 2 * self.refinement) / 100
+        dmgBonus = (9 + 3 * self.refinement + stacks * (6 + 2 * self.refinement)) / 100
         return self.attributes + Attributes(dmg_bonus={DmgTag.CHARGED: dmgBonus, DmgTag.NORMAL: dmgBonus})
 
 

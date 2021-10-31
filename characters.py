@@ -42,7 +42,7 @@ class Character(ABC):
         self.sets = artifact_set
         self.artifact_attributes = Attributes()
         if Buffs.BENNETT in buffs:
-            self.attributes.flat_atk += 954
+            self.attributes.flat_atk += 1093
         if Buffs.NOBLESSE in buffs:
             self.attributes.atk_pct += 0.2
         if Buffs.KAZOO in buffs:
@@ -52,9 +52,12 @@ class Character(ABC):
             self.attributes.dmg_bonus[DmgTag.PYRO] = 0.4
             self.attributes.dmg_bonus[DmgTag.HYDRO] = 0.4
             self.attributes.dmg_bonus[DmgTag.ELECTRO] = 0.4
+            # c2 kekW
+            #self.attributes.em += 200
         if Buffs.SUCROSE in buffs:
             # currently assuming 750 em
             self.attributes.em += 200
+
         if Buffs.TTDS in buffs:
             self.attributes.atk_pct += 0.48
         if Buffs.PYRO_RES in buffs:
@@ -179,7 +182,7 @@ class Ganyu(Character):
         # TODO: make this work, not high priority since ganyu normals are omegalul
         return normal_attack_values[number_of_hits - 1], damageType
 
-    def charged_attack(self, fully_charged=True, bloom=True, hit_weakpoint=False, amos_stacks=0, **kwargs):
+    def charged_attack(self, fully_charged=True, bloom=True, hit_weakpoint=False, amos_stacks=1, **kwargs):
         damageType = [DmgTag.CHARGED]
         bonus = Attributes(crit_rate=0.2 * self.get_a1() * fully_charged)
         if not fully_charged:
@@ -234,7 +237,7 @@ class Ganyu(Character):
         total_damage += self.elemental_skill()
         self.set_aura(DmgTag.PYRO)
         self.state[Event.ENERGY_FULL] = True
-        for i in range(5):
+        for i in range(4):
             total_damage += self.charged_attack(hit_weakpoint=True)
         self.reset()
         return total_damage
