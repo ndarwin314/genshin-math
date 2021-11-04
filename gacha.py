@@ -6,16 +6,17 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import os
 
-P = 0.325
+rampRate = 0.06
+P = 0.006
 
-characterProbability = [0]
-for i in range(1, 76):
-    characterProbability.append(0.006 * pow(0.994, i - 1) + characterProbability[-1])
-for i in range(76, 90):
+"""characterProbability = [0]
+for i in range(1, 74):
+    characterProbability.append(P * pow(1-P, i - 1) + characterProbability[-1])
+for i in range(74, 90):
     # (1 - characterProbability[75]) gives the probability 5* was in the first 75 wishes
     # we use this to scale our new geometric distribution so the total distribution sums to 1
     characterProbability.append(
-        (1 - characterProbability[75]) * P * pow(1-P, i - 76) + characterProbability[-1])
+        (1 - characterProbability[-1]) * (P+rampRate*(i-73)) + characterProbability[-1])
 characterProbability.append(1)
 
 weaponProbability = [0]
@@ -23,7 +24,38 @@ for i in range(1, 63):
     weaponProbability.append(0.007 * pow(0.993, i - 1) + weaponProbability[-1])
 for i in range(63, 76):
     weaponProbability.append((1 - characterProbability[63]) * 0.2 * pow(0.8, i - 63) + weaponProbability[-1])
-weaponProbability.append(1)
+weaponProbability.append(1)"""
+
+def deterministic(constellations=0, wishes=0):
+    base = np.zeros((91,))
+    base[0] = 0
+    base[1:74] = P
+    base[90] = 1
+    for i in range(74, 90):
+        base[i] = P + rampRate * (i-73)
+    ones = np.ones((91,))
+    temp = ones - base
+    basePDF = np.zeros((91,))
+    for i in range(91):
+        basePDF[i] = np.prod(temp[0:i]) * base[i]
+    doublePDF = np.zeros((181,))
+    doublePDF[0:91] += basePDF
+    for i in range(1, 90):
+        doublePDF[i:i+91] += basePDF[i]*basePDF
+    doublePDF *= 0.5
+    fullPDF = doublePDF
+    for i in range(constellations):
+        fullPDF = np.convolve(fullPDF, doublePDF)
+    maxValue = fullPDF.max(initial=0)
+    print(fullPDF.cumsum()[wishes])
+    plt.plot(fullPDF)
+    plt.axis([0, (constellations+1)*180, 0, maxValue*1.1])
+    plt.grid(True)
+    plt.show()
+
+
+
+
 
 
 def sim_gacha(constellation=0, bannerCharacterEnsured=False):
@@ -44,8 +76,6 @@ def sim_gacha(constellation=0, bannerCharacterEnsured=False):
                 bannerCharacterEnsured = True
     return totalWishes
 
-def kill_me(n):
-    return sim_gacha(6, False)
 
 def multiple(n):
 
@@ -128,13 +158,13 @@ def character(constellation=0, trials=10 ** 5, banner=False):
     print(f"    90th Percentile: {rolls[9 * trials // 10]}")
     print(time.time()-start)
 
-    """plt.hist(rolls, bins=Max, density=True)
+    plt.hist(rolls, bins=Max, density=True)
     plt.xlabel("Number of wishes")
     plt.ylabel("Probability")
     plt.title("5* character without guarantee")
     plt.axis([0, Max, 0, maxProbability * 1.2])
     plt.grid(True)
-    plt.show()"""
+    plt.show()
 
 
 def weapon(trials=10 ** 7):
